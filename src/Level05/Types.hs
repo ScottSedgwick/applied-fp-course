@@ -7,6 +7,7 @@ module Level05.Types
   , RqType (..)
   , ContentType (..)
   , Comment (..)
+  , DBComment
   , Topic
   , CommentText
   , mkTopic
@@ -84,9 +85,7 @@ encodeComment = E.mapLikeObj $ \c ->
 -- nice method for separating out the back and front end of a web app and
 -- providing greater guarantees about data cleanliness.
 
-fromDBComment
-  :: DBComment
-  -> Either Error Comment
+fromDBComment :: DBComment -> Either Error Comment
 fromDBComment dbc =
   Comment (CommentId     $ dbCommentId dbc)
       <$> (mkTopic       $ dbCommentTopic dbc)

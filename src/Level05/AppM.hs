@@ -64,40 +64,44 @@ newtype AppM a = AppM (IO (Either Error a))
 --
 -- AppM e m a = AppM ( m (Either e a) )
 
-runAppM
-  :: AppM a
-  -> IO (Either Error a)
-runAppM (AppM m) =
-  m
+runAppM :: AppM a -> IO (Either Error a)
+runAppM (AppM m) = m
 
 instance Functor AppM where
   fmap :: (a -> b) -> AppM a -> AppM b
-  fmap = error "fmap for AppM not implemented"
+  fmap f = AppM . (fmap . fmap) f . runAppM
 
+-- (>>=) :: Monad m => m a -> (a -> m b) -> m b
 instance Applicative AppM where
   pure :: a -> AppM a
-  pure  = error "pure for AppM not implemented"
+  pure = AppM . return . Right
 
   (<*>) :: AppM (a -> b) -> AppM a -> AppM b
-  (<*>) = error "spaceship for AppM not implemented"
+  (<*>) (AppM f) (AppM a) = AppM (f `apply` a)
+    where
+      apply m1 m2 = m1 >>= \x1 -> m2 >>= \x2 -> return (x1 <*> x2)
 
 instance Monad AppM where
   return :: a -> AppM a
-  return = error "return for AppM not implemented"
+  return = pure
 
   (>>=) :: AppM a -> (a -> AppM b) -> AppM b
-  (>>=)  = error "bind for AppM not implemented"
+  (>>=) (AppM a) f = AppM (g a)
+    where
+      g m = m >>= either (return . Left) (runAppM . f)
 
 instance MonadIO AppM where
   liftIO :: IO a -> AppM a
-  liftIO = error "liftIO for AppM not implemented"
+  liftIO = AppM . fmap Right
 
 instance MonadError Error AppM where
   throwError :: Error -> AppM a
-  throwError = error "throwError for AppM not implemented"
+  throwError = AppM . return . Left
 
   catchError :: AppM a -> (Error -> AppM a) -> AppM a
-  catchError = error "catchError for AppM not implemented"
+  catchError (AppM a) f = AppM (g a)
+    where
+      g m = m >>= either (runAppM . f) (return . Right)
 
 -- This is a helper function that will `lift` an Either value into our new AppM
 -- by applying `throwError` to the Left value, and using `pure` to lift the
@@ -106,10 +110,7 @@ instance MonadError Error AppM where
 -- throwError :: MonadError e m => e -> m a
 -- pure :: Applicative m => a -> m a
 --
-liftEither
-  :: Either Error a
-  -> AppM a
-liftEither =
-  error "liftEither not implemented"
+liftEither :: Either Error a -> AppM a
+liftEither = AppM . return
 
 -- Go to 'src/Level05/DB.hs' next.

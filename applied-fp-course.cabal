@@ -152,6 +152,7 @@ test-suite app-fp-tests
                      , text == 1.2.*
                      , mtl == 2.2.*
                      , semigroups == 0.18.*
+                     , sqlite-simple-errors == 0.6.*
                      , transformers >= 0.4 && < 0.6
 
                      -- [Challenge] Packages
