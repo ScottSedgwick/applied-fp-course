@@ -77,18 +77,14 @@ instance Applicative AppM where
   pure = AppM . return . Right
 
   (<*>) :: AppM (a -> b) -> AppM a -> AppM b
-  (<*>) (AppM f) (AppM a) = AppM (f `apply` a)
-    where
-      apply m1 m2 = m1 >>= \x1 -> m2 >>= \x2 -> return (x1 <*> x2)
+  (<*>) (AppM f) (AppM a) = AppM (f >>= \f' -> (<*>) f' <$> a)
 
 instance Monad AppM where
   return :: a -> AppM a
   return = pure
 
   (>>=) :: AppM a -> (a -> AppM b) -> AppM b
-  (>>=) (AppM a) f = AppM (g a)
-    where
-      g m = m >>= either (return . Left) (runAppM . f)
+  (>>=) (AppM a) f = AppM (a >>= either (return . Left) (runAppM . f))
 
 instance MonadIO AppM where
   liftIO :: IO a -> AppM a
@@ -99,9 +95,7 @@ instance MonadError Error AppM where
   throwError = AppM . return . Left
 
   catchError :: AppM a -> (Error -> AppM a) -> AppM a
-  catchError (AppM a) f = AppM (g a)
-    where
-      g m = m >>= either (runAppM . f) (return . Right)
+  catchError (AppM a) f = AppM (a >>= either (runAppM . f) (return . Right))
 
 -- This is a helper function that will `lift` an Either value into our new AppM
 -- by applying `throwError` to the Left value, and using `pure` to lift the

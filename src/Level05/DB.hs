@@ -70,58 +70,31 @@ runDB f m = liftIO (Sql.runDBAction m) >>= either (throwError . DBError) (liftEi
   -- Move your use of DB.runDBAction to this function to avoid repeating
   -- yourself in the various DB functions.
 
--- runDBAction :: IO a -> IO (DatabaseResponse a)
--- DatabaseResponse a = Either SQLiteResponse a
--- data Error
---   = UnknownRoute
---   | EmptyCommentText
---   | EmptyTopic
---   | DBError SQLiteResponse
---   deriving (Eq, Show)
-
--- runAppM :: AppM a -> IO (Either Error a)
--- fmap :: (a -> b) -> AppM a -> AppM b
--- pure :: a -> AppM a
--- (<*>) :: AppM (a -> b) -> AppM a -> AppM b
--- return :: a -> AppM a
--- (>>=) :: AppM a -> (a -> AppM b) -> AppM b
--- liftIO :: IO a -> AppM a
--- throwError :: Error -> AppM a
--- catchError :: AppM a -> (Error -> AppM a) -> AppM a
--- liftEither :: Either Error a -> AppM a
-
--- runDB :: (a -> Either Error b) -> IO a -> AppM b
-
 getComments :: FirstAppDB -> Topic -> AppM [Comment]
 getComments (FirstAppDB conn) topic = runDB (traverse fromDBComment) rows
   where
     sql = "SELECT id,topic,comment,time FROM comments WHERE topic = :topic"
     rows = Sql.queryNamed conn sql [":topic" := getTopic topic]
 
--- queryNamed :: FromRow r => Connection -> Query -> [NamedParam] -> IO [r]
--- fromDBComment :: DBComment -> Either Error Comment
--- sequence :: Monad a => [a b] -> a [b]
--- traverse :: (Traversable t, Applicative f) => (a -> f b) -> t a -> f (t b)
+addCommentToTopic :: FirstAppDB -> Topic -> CommentText -> AppM ()
+addCommentToTopic (FirstAppDB conn) topic commentText = do
+  currTime <- liftIO getCurrentTime
+  runDB Right (Sql.executeNamed conn sql  [ ":topic"   := getTopic topic
+                                          , ":comment" := getCommentText commentText
+                                          , ":time"    := currTime
+                                          ])
+  where
+    sql = "INSERT INTO comments (topic,comment,time) VALUES (:topic, :comment, :time)"
 
-addCommentToTopic
-  :: FirstAppDB
-  -> Topic
-  -> CommentText
-  -> AppM ()
-addCommentToTopic =
-  error "Copy your completed 'appCommentToTopic' and refactor to match the new type signature"
+getTopics :: FirstAppDB -> AppM [Topic]
+getTopics (FirstAppDB conn) = runDB (traverse (mkTopic . Sql.fromOnly)) rows
+  where
+    sql = "SELECT DISTINCT topic FROM comments"
+    rows = Sql.query_ conn sql
 
-getTopics
-  :: FirstAppDB
-  -> AppM [Topic]
-getTopics =
-  error "Copy your completed 'getTopics' and refactor to match the new type signature"
-
-deleteTopic
-  :: FirstAppDB
-  -> Topic
-  -> AppM ()
-deleteTopic =
-  error "Copy your completed 'deleteTopic' and refactor to match the new type signature"
+deleteTopic :: FirstAppDB -> Topic -> AppM ()
+deleteTopic (FirstAppDB conn) topic = runDB Right (Sql.executeNamed conn sql [":topic" := getTopic topic])
+  where
+    sql = "DELETE FROM comments WHERE topic = :topic"
 
 -- Go to 'src/Level05/Core.hs' next.

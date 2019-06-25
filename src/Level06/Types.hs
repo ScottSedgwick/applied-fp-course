@@ -27,6 +27,7 @@ module Level06.Types
   , renderContentType
   , confPortToWai
   , fromDBComment
+  , partialConfDecoder
   ) where
 
 import           GHC.Word                           (Word16)
@@ -147,6 +148,9 @@ newtype Port = Port
   { getPort :: Word16 }
   deriving (Eq, Show)
 
+portFromInt :: Int -> Port
+portFromInt = Port . fromIntegral
+
 newtype DBFilePath = DBFilePath
   { getDBFilePath :: FilePath }
   deriving (Eq, Show)
@@ -154,7 +158,9 @@ newtype DBFilePath = DBFilePath
 -- Add some fields to the ``Conf`` type:
 -- - A customisable port number: ``Port``
 -- - A filepath for our SQLite database: ``DBFilePath``
-data Conf = Conf
+data Conf = Conf { confPort :: Port
+                 , confPath :: DBFilePath
+                 }
 
 -- We're storing our Port as a Word16 to be more precise and prevent invalid
 -- values from being used in our application. However Wai is not so stringent.
@@ -166,11 +172,8 @@ data Conf = Conf
 --
 -- fromIntegral :: (Num b, Integral a) => a -> b
 --
-confPortToWai
-  :: Conf
-  -> Int
-confPortToWai =
-  error "confPortToWai not implemented"
+confPortToWai :: Conf -> Int
+confPortToWai = fromIntegral . getPort . confPort
 
 -- Similar to when we were considering our application types. We can add to this sum type as we
 -- build our application and the compiler can help us out.
@@ -212,8 +215,8 @@ data PartialConf = PartialConf
 -- on the ``Semigroup`` instance for Last to always get the last value.
 instance Semigroup PartialConf where
   _a <> _b = PartialConf
-    { pcPort       = error "pcPort (<>) not implemented"
-    , pcDBFilePath = error "pcDBFilePath (<>) not implemented"
+    { pcPort       = pcPort _a <> pcPort _b
+    , pcDBFilePath = pcDBFilePath _a <> pcDBFilePath _b
     }
 
 -- We now define our ``Monoid`` instance for ``PartialConf``. Allowing us to
@@ -233,6 +236,9 @@ instance Monoid PartialConf where
 -- have to tell waargonaut how to go about converting the JSON into our PartialConf
 -- data structure.
 partialConfDecoder :: Monad f => Decoder f PartialConf
-partialConfDecoder = error "PartialConf Decoder not implemented"
-
+partialConfDecoder = D.withCursor $ \curs -> do
+  io <- D.down curs
+  PartialConf <$> D.fromKey "port" ((Last . Just . Port . fromIntegral) <$> D.int) io
+              <*> D.fromKey "dbName" ((Last . Just . DBFilePath) <$> D.string) io
+ 
 -- Go to 'src/Level06/Conf/File.hs' next

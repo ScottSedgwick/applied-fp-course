@@ -46,7 +46,8 @@ import           Level06.Types                      (Conf, ConfigError,
                                                      RqType (AddRq, ListRq, ViewRq),
                                                      encodeComment, encodeTopic,
                                                      mkCommentText, mkTopic,
-                                                     renderContentType)
+                                                     renderContentType,
+                                                     confPortToWai)
 
 -- | Our start-up is becoming more complicated and could fail in new and
 -- interesting ways. But we also want to be able to capture these errors in a
@@ -57,7 +58,18 @@ data StartUpError
   deriving Show
 
 runApplication :: IO ()
-runApplication = error "copy your previous 'runApp' implementation and refactor as needed"
+runApplication = do
+  -- Load our configuration
+  cfgE <- runAppM prepareAppReqs
+  -- Loading the configuration can fail, so we have to take that into account now.
+  case cfgE of
+    Left err  -> putStrLn $ "Error starting application: " <> show err
+    Right (cfg, db) ->
+      -- We have a valid config! We can now complete the various pieces needed to run our
+      -- application. This function 'finally' will execute the first 'IO a', and then, even in the
+      -- case of that value throwing an exception, execute the second 'IO b'. We do this to ensure
+      -- that our DB connection will always be closed when the application finishes, or crashes.
+      Ex.finally (run (confPortToWai cfg) (app cfg db)) (DB.closeDB db)
 
 -- | We need to complete the following steps to prepare our app requirements:
 --

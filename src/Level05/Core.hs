@@ -21,6 +21,7 @@ import           Network.HTTP.Types                 (Status, hContentType,
 
 import qualified Data.ByteString.Lazy               as LBS
 
+import           Data.Bifunctor                     (first)
 import           Data.Either                        (either)
 import           Data.Monoid                        ((<>))
 
@@ -54,17 +55,16 @@ runApp :: IO ()
 runApp = do
   -- Load our configuration
   cfgE <- prepareAppReqs
+  let port = Conf.appPort Conf.firstAppConfig
   -- Loading the configuration can fail, so we have to take that into account now.
   case cfgE of
-    Left err   ->
-      -- We can't run our app at all! Display the message and exit the application.
-      undefined
+    Left err  -> putStrLn $ "Error starting application: " <> show err
     Right cfg ->
       -- We have a valid config! We can now complete the various pieces needed to run our
       -- application. This function 'finally' will execute the first 'IO a', and then, even in the
       -- case of that value throwing an exception, execute the second 'IO b'. We do this to ensure
       -- that our DB connection will always be closed when the application finishes, or crashes.
-      Ex.finally (run undefined undefined) (DB.closeDB cfg)
+      Ex.finally (run port (app cfg)) (DB.closeDB cfg)
 
 -- We need to complete the following steps to prepare our app requirements:
 --
@@ -73,10 +73,8 @@ runApp = do
 --
 -- Our application configuration is defined in Conf.hs
 --
-prepareAppReqs
-  :: IO ( Either StartUpError DB.FirstAppDB )
-prepareAppReqs =
-  error "copy your prepareAppReqs from the previous level."
+prepareAppReqs :: IO ( Either StartUpError DB.FirstAppDB )
+prepareAppReqs = first DBInitErr <$> DB.initDB (Conf.dbFilePath Conf.firstAppConfig) 
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse
@@ -127,11 +125,9 @@ resp200Json e =
 
 -- How has this implementation changed, now that we have an AppM to handle the
 -- errors for our application? Could it be simplified? Can it be changed at all?
-app
-  :: DB.FirstAppDB
-  -> Application
-app db rq cb =
-  error "app not reimplemented"
+
+app :: DB.FirstAppDB -> Application
+app db rq cb = runAppM (mkRequest rq >>= handleRequest db) >>= cb . either mkErrorResponse id
 
 handleRequest
   :: DB.FirstAppDB

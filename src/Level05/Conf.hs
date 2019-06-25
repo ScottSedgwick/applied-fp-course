@@ -6,7 +6,8 @@ module Level05.Conf
 
 data Conf = Conf
   { dbFilePath :: FilePath
+  , appPort :: Int
   }
 
 firstAppConfig :: Conf
-firstAppConfig = Conf "app_db.db"
+firstAppConfig = Conf { dbFilePath = "app_db.db", appPort = 3000 }

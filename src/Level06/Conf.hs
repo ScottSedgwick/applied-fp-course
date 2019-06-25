@@ -6,13 +6,15 @@ module Level06.Conf
 
 import           GHC.Word                 (Word16)
 
+import           Control.Monad.IO.Class   (MonadIO (..))
 import           Data.Bifunctor           (first)
-import           Data.Monoid              ((<>))
+import           Data.Monoid              (Last(..), (<>))
 
-import           Level06.AppM             (AppM)
-import           Level06.Types            (Conf, ConfigError,
-                                           DBFilePath (DBFilePath), PartialConf,
+import           Level06.AppM             (AppM, liftEither)
+import           Level06.Types            (Conf(..), ConfigError(..),
+                                           DBFilePath (DBFilePath), PartialConf(..),
                                            Port (Port))
+import           Waargonaut.Decode.Error  (DecodeError(..))
 
 import           Level06.Conf.CommandLine (commandLineParser)
 import           Level06.Conf.File        (parseJSONConfigFile)
@@ -20,19 +22,25 @@ import           Level06.Conf.File        (parseJSONConfigFile)
 -- | For the purposes of this application we will encode some default values to
 -- ensure that our application continues to function in the event of missing
 -- configuration values from either the file or command line inputs.
-defaultConf
-  :: PartialConf
-defaultConf =
-  error "defaultConf not implemented"
+defaultConf :: PartialConf
+defaultConf = PartialConf
+  { pcPort = Last (Just (Port 3000))
+  , pcDBFilePath = Last (Just (DBFilePath "app_db.db"))
+  }
 
 -- | We need something that will take our PartialConf and see if can finally build
 -- a complete ``Conf`` record. Also we need to highlight any missing values by
 -- providing the relevant error.
-makeConfig
-  :: PartialConf
-  -> Either ConfigError Conf
-makeConfig =
-  error "makeConfig not implemented"
+makeConfig :: PartialConf -> Either ConfigError Conf
+makeConfig pc =
+  let
+    mport = getLast (pcPort pc)
+    mpath = getLast (pcDBFilePath pc)
+    mkcfg Nothing _ = Left (BadConfFile (KeyNotFound "Port not configured"))
+    mkcfg _ Nothing = Left (BadConfFile (KeyNotFound "DB File Path not configured"))
+    mkcfg (Just port) (Just path) = Right (Conf port path)
+  in
+    mkcfg mport mpath
 
 -- | This is the function we'll actually export for building our configuration.
 -- Since it wraps all our efforts to read information from the command line, and
@@ -44,12 +52,9 @@ makeConfig =
 --
 -- ``defaults <> file <> commandLine``
 --
-parseOptions
-  :: FilePath
-  -> AppM ConfigError Conf
-parseOptions =
-  -- Parse the options from the config file: "files/appconfig.json"
-  -- Parse the options from the commandline using 'commandLineParser'
-  -- Combine these with the default configuration 'defaultConf'
-  -- Return the final configuration value
-  error "parseOptions not implemented"
+parseOptions :: FilePath -> AppM ConfigError Conf
+parseOptions fp = do
+  fileConf <- parseJSONConfigFile fp
+  lineConf <- liftIO commandLineParser
+  let pConf = defaultConf <> fileConf <> lineConf
+  liftEither (makeConfig pConf)

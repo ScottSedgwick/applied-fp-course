@@ -46,8 +46,8 @@ import           Database.SQLite.SimpleErrors.Types (SQLiteResponse)
 -- | This import is provided for you so you can check your work from Level02. As
 -- you move forward, come back and import your latest 'Application' so that you
 -- can test your work as you progress.
-import qualified Level04.Core       as Core
-import qualified Level04.DB         as DB
+import qualified Level05.Core       as Core
+import qualified Level05.DB         as DB
 
 main :: IO ()
 main = do
@@ -67,7 +67,7 @@ runTests db = do
 
     , testWai (Core.app db) "View Comments" $ do
         comments <- get "fudge/view"
-        let expected = "[{\"CommentId\":1,\"CommentTopic\":\"fudge\",\"CommentText\":\"Comment!\",\"CommentTime\":"
+        let expected = "Comment!"
         assertStatus' HTTP.status200 comments
         assertBodyContains expected comments
         
