@@ -39,8 +39,9 @@ import qualified Level07.Conf                       as Conf
 import qualified Level07.DB                         as DB
 
 import qualified Level07.Responses                  as Res
-import           Level07.Types                      (Conf, ConfigError,
+import           Level07.Types                      (Conf(..), ConfigError,
                                                      ContentType (PlainText),
+                                                     DBFilePath(..),
                                                      Error (..), RqType (..),
                                                      confPortToWai,
                                                      encodeComment, encodeTopic,
@@ -51,7 +52,7 @@ import           Level07.AppM                       (App, Env (..), liftEither,
 
 -- | We're going to use the `mtl` ExceptT monad transformer to make the loading of
 -- our `Conf` a bit more straight-forward.
-import           Control.Monad.Except               (ExceptT (..), runExceptT)
+import           Control.Monad.Except               (ExceptT (..), runExceptT, withExceptT)
 
 -- | Our start-up is becoming more complicated and could fail in new and
 -- interesting ways. But we also want to be able to capture these errors in a
@@ -82,8 +83,18 @@ runApplication = do
 --
 -- 'mtl' on Hackage: https://hackage.haskell.org/package/mtl
 --
+
 prepareAppReqs :: ExceptT StartUpError IO Env
-prepareAppReqs = error "prepareAppReqs not reimplemented with ExceptT"
+prepareAppReqs = do
+  conf <- withEx ConfErr   (Conf.parseOptions "files/appconfig.json")
+  db   <- withEx DBInitErr (DB.initDB (dbFilePath conf))
+  return $ Env { envLoggingFn = logErr, envConfig = conf, envDB = db }
+  where
+    withEx f m = withExceptT f (ExceptT m)
+
+logErr :: Text -> App ()
+logErr = liftIO . hPutStrLn stderr
+
   -- You may copy your previous implementation of this function and try refactoring it. On the
   -- condition you have to explain to the person next to you what you've done and why it works.
 
@@ -91,11 +102,12 @@ prepareAppReqs = error "prepareAppReqs not reimplemented with ExceptT"
 -- within our App context, we need to run the App to get our IO action out
 -- to be run and handed off to the callback function. We've already written
 -- the function for this so include the 'runApp' with the Env.
-app
-  :: Env
-  -> Application
-app =
-  error "Copy your completed 'app' from the previous level and refactor it here"
+app :: Env -> Application
+app e rq cb = 
+  runApp (handleRequest =<< mkRequest rq) e >>= cb . handleRespErr
+  where
+    handleRespErr :: Either Error Response -> Response
+    handleRespErr = either mkErrorResponse id
 
 handleRequest
   :: RqType

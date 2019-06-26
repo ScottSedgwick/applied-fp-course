@@ -65,10 +65,7 @@ initDB fp = Sql.runDBAction $ do
     createTableQ =
       "CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY, topic TEXT, comment TEXT, time INTEGER)"
 
-runDB
-  :: (a -> Either Error b)
-  -> IO a
-  -> App b
+runDB :: (a -> Either Error b) -> IO a -> App b
 runDB f a = do
   r <- liftIO $ first DBError <$> Sql.runDBAction a
   liftEither $ f =<< r

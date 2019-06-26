@@ -139,6 +139,9 @@ test-suite app-fp-tests
 
   hs-source-dirs:      tests
   main-is:             Test.hs
+  other-modules:       Tests05
+                     , Tests06
+                     , Tests07
 
   build-depends:       base >= 4.8 && <4.13
                      , applied-fp-course

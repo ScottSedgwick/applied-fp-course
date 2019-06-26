@@ -56,7 +56,11 @@ instance Applicative (AppM e) where
   pure  = AppM . pure . Right
 
   (<*>) :: AppM e (a -> b) -> AppM e a -> AppM e b
-  (<*>) (AppM f) (AppM a) = AppM (f >>= \f' -> (<*>) f' <$> a)
+  -- (<*>) (AppM atob) (AppM a) = AppM ( (<*>) <$> atob <*> a )
+  (<*>) (AppM f) (AppM a) = AppM (f <**> a)
+
+(<**>) :: (Applicative f, Applicative g) => f (g (a -> b)) -> f (g a) -> f (g b)
+(<**>) x a = (<*>) ((<*>) <$> x) a
 
 instance Monad (AppM e) where
   return :: a -> AppM e a

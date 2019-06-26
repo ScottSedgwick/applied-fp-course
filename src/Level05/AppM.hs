@@ -77,7 +77,8 @@ instance Applicative AppM where
   pure = AppM . return . Right
 
   (<*>) :: AppM (a -> b) -> AppM a -> AppM b
-  (<*>) (AppM f) (AppM a) = AppM (f >>= \f' -> (<*>) f' <$> a)
+  -- (<*>) (AppM f) (AppM a) = AppM (f >>= \f' -> (<*>) f' <$> a)
+  (<*>) (AppM atob) (AppM a) = AppM ( (<*>) <$> atob <*> a )
 
 instance Monad AppM where
   return :: a -> AppM a

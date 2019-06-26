@@ -40,7 +40,7 @@ import           Level06.AppM                       (App, AppM (..),
                                                      liftEither, runApp)
 import qualified Level06.Conf                       as Conf
 import qualified Level06.DB                         as DB
-import           Level06.Types                      (Conf, ConfigError,
+import           Level06.Types                      (Conf(..), ConfigError, DBFilePath(..),
                                                      ContentType (..),
                                                      Error (..),
                                                      RqType (AddRq, ListRq, ViewRq),
@@ -84,7 +84,13 @@ runApplication = do
 -- up!
 --
 prepareAppReqs :: AppM StartUpError (Conf, DB.FirstAppDB)
-prepareAppReqs = error "copy your prepareAppReqs from the previous level."
+prepareAppReqs = do
+  conf <- first ConfErr (Conf.parseOptions "files/appconfig.json")
+  eedb <- liftIO (DB.initDB (getDBFilePath (confPath conf)))
+  db <- case eedb of
+          Left e -> throwError (DBInitErr e)
+          Right x -> pure x
+  pure (conf, db)
 
 -- | Some helper functions to make our lives a little more DRY.
 mkResponse
